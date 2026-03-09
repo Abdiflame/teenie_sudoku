@@ -30,7 +30,7 @@ const buildNewState = (difficulty: Difficulty, size: 4 | 5) => {
 
 export const GameBoard = () => {
   useServiceWorker();
-  const { play } = useSound();
+  const { playEffect, startBackground, stopBackground, playWin, stopWin } = useSound();
   const { saved, persist } = useLocalProgress();
 
   const [size, setSize] = useState<4 | 5>(4);
@@ -86,6 +86,7 @@ export const GameBoard = () => {
     setFlashRows(new Set());
     setFlashCols(new Set());
     setCheer(null);
+    stopWin();
   };
 
   const startNew = (nextDifficulty = difficulty, nextSize = size) => {
@@ -98,10 +99,12 @@ export const GameBoard = () => {
     setSize(fresh.size);
     resetProgress();
     persistState(fresh);
+    startBackground();
   };
 
   const handleNumber = (value: number) => {
     if (!puzzle || !current || !solution || !selected) return;
+    startBackground();
     const { row, col } = selected;
     if (puzzle[row][col] !== 0) return; // preset
     const next = current.map((r) => [...r]) as Grid;
@@ -111,29 +114,32 @@ export const GameBoard = () => {
 
     if (value !== 0) {
       if (solution[row][col] === value) {
-        play("correct");
+        playEffect("correct");
       } else {
-        play("incorrect");
+        playEffect("incorrect");
       }
     }
     const solved = isCorrect(next, solution);
     if (solved) {
       setWon(true);
-      play("win");
+      stopBackground();
+      playWin();
     }
   };
 
   const handleHint = () => {
     if (!puzzle || !current || !solution || hintsLeft <= 0) return;
+    startBackground();
     const { updated, revealed } = applyHint(current, solution);
-    if (revealed) play("hint");
+    if (revealed) playEffect("hint");
     setCurrent(updated);
     const nextHints = Math.max(0, hintsLeft - 1);
     setHintsLeft(nextHints);
     persistState({ puzzle, current: updated, solution, difficulty, hintsLeft: nextHints, size });
     if (isCorrect(updated, solution)) {
       setWon(true);
-      play("win");
+      stopBackground();
+      playWin();
     }
   };
 
@@ -161,7 +167,7 @@ export const GameBoard = () => {
       const index = Math.floor(Math.random() * cheering.length);
       setCheer(cheering[index]);
       setTimeout(() => setCheer(null), 1800);
-      play("correct");
+      playEffect("correct");
     };
 
     const nextRows = new Set<number>();
@@ -178,39 +184,49 @@ export const GameBoard = () => {
       if (matches) nextCols.add(c);
     }
 
-    setFlashRows((prevFlash) => {
-      const newly = Array.from(nextRows).filter((r) => !completedRows.has(r));
-      if (newly.length) triggerCheer();
-      if (newly.length === 0) return prevFlash;
-      const next = new Set([...prevFlash, ...newly]);
-      setTimeout(() => {
-        setFlashRows((curr) => {
-          const clone = new Set(curr);
-          newly.forEach((r) => clone.delete(r));
-          return clone;
+    setCompletedRows((prev) => {
+      const newly = Array.from(nextRows).filter((r) => !prev.has(r));
+      if (newly.length) {
+        triggerCheer();
+        setFlashRows((prevFlash) => {
+          const next = new Set([...prevFlash, ...newly]);
+          setTimeout(() => {
+            setFlashRows((curr) => {
+              const clone = new Set(curr);
+              newly.forEach((r) => clone.delete(r));
+              return clone;
+            });
+          }, 1200);
+          return next;
         });
-      }, 1200);
-      return next;
+      }
+      return nextRows;
     });
 
-    setFlashCols((prevFlash) => {
-      const newly = Array.from(nextCols).filter((c) => !completedCols.has(c));
-      if (newly.length) triggerCheer();
-      if (newly.length === 0) return prevFlash;
-      const next = new Set([...prevFlash, ...newly]);
-      setTimeout(() => {
-        setFlashCols((curr) => {
-          const clone = new Set(curr);
-          newly.forEach((c) => clone.delete(c));
-          return clone;
+    setCompletedCols((prev) => {
+      const newly = Array.from(nextCols).filter((c) => !prev.has(c));
+      if (newly.length) {
+        triggerCheer();
+        setFlashCols((prevFlash) => {
+          const next = new Set([...prevFlash, ...newly]);
+          setTimeout(() => {
+            setFlashCols((curr) => {
+              const clone = new Set(curr);
+              newly.forEach((c) => clone.delete(c));
+              return clone;
+            });
+          }, 1200);
+          return next;
         });
-      }, 1200);
-      return next;
+      }
+      return nextCols;
     });
+  }, [current, solution, playEffect]);
 
-    setCompletedRows(nextRows);
-    setCompletedCols(nextCols);
-  }, [completedCols, completedRows, current, solution, play]);
+  useEffect(() => {
+    if (!puzzle || !current || won) return;
+    startBackground();
+  }, [puzzle, current, won, startBackground]);
 
   const handleSizeChange = (next: 4 | 5) => {
     if (next === size) return;
@@ -278,8 +294,17 @@ export const GameBoard = () => {
         </div>
         <Celebration show={won} />
         {won && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="card p-6 text-center max-w-sm">
+          <div className="win-overlay">
+            <div className="win-modal card p-6 text-center max-w-sm">
+              <div className="win-video-frame">
+                <video
+                  className="win-video"
+                  src="/animation/teenie_animation.mp4"
+                  autoPlay
+                  muted
+                  playsInline
+                />
+              </div>
               <h2 className="text-3xl font-display text-sky-900 mb-2">Yay! You did it! 🎉</h2>
               <p className="text-sky-700 mb-4">Stars unlocked. Try a new puzzle or harder mode.</p>
               <div className="flex gap-2 justify-center">

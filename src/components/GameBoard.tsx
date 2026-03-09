@@ -99,6 +99,7 @@ export const GameBoard = () => {
     setSize(fresh.size);
     resetProgress();
     persistState(fresh);
+    stopBackground();
     startBackground();
   };
 

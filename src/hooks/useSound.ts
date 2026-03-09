@@ -37,6 +37,7 @@ export const useSound = () => {
   const winAudioRef = useRef<HTMLAudioElement | null>(null);
   const bgIndexRef = useRef<number>(0);
   const bgPlayingRef = useRef(false);
+  const bgStartingRef = useRef(false);
   const winPlayingRef = useRef(false);
 
   const playEffect = useCallback((type: "correct" | "incorrect" | "hint" | "win" = "correct") => {
@@ -67,6 +68,7 @@ export const useSound = () => {
     const audio = bgAudioRef.current;
     if (!audio) return;
     bgPlayingRef.current = false;
+    bgStartingRef.current = false;
     audio.onended = null;
     fadeVolume(audio, audio.volume, 0, fadeMs, () => {
       audio.pause();
@@ -76,7 +78,8 @@ export const useSound = () => {
 
   const startBackground = useCallback(async () => {
     if (typeof window === "undefined") return;
-    if (bgPlayingRef.current) return;
+    if (bgPlayingRef.current || bgStartingRef.current) return;
+    bgStartingRef.current = true;
 
     const startIndex = Math.floor(Math.random() * BACKGROUND_TRACKS.length);
     bgIndexRef.current = startIndex;
@@ -84,7 +87,6 @@ export const useSound = () => {
     audio.volume = 0;
     audio.preload = "auto";
     bgAudioRef.current = audio;
-    bgPlayingRef.current = true;
 
     const playNext = async () => {
       if (!bgPlayingRef.current || !bgAudioRef.current) return;
@@ -104,10 +106,13 @@ export const useSound = () => {
     audio.onended = playNext;
     try {
       await audio.play();
+      bgPlayingRef.current = true;
       fadeVolume(audio, 0, 0.35, 700);
     } catch (error) {
       console.warn("Background audio blocked", error);
       bgPlayingRef.current = false;
+    } finally {
+      bgStartingRef.current = false;
     }
   }, []);
 

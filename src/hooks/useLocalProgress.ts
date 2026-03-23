@@ -12,31 +12,35 @@ export type SavedState = {
   difficulty: Difficulty;
   hintsLeft: number;
   size: 4 | 5;
+  elapsedSeconds?: number;
 };
 
 export const useLocalProgress = () => {
   const [saved, setSaved] = useState<SavedState | null>(null);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     const payload = typeof window !== "undefined" ? window.localStorage.getItem(STORAGE_KEY) : null;
-    if (!payload) return;
-    try {
-      const parsed = JSON.parse(payload) as SavedState;
-      if (!parsed?.puzzle || !parsed?.current || !parsed?.solution) return;
-      setSaved({
-        ...parsed,
-        size: parsed.size === 5 ? 5 : 4,
-        puzzle: deserializeGrid(serializeGrid(parsed.puzzle))!,
-        current: deserializeGrid(serializeGrid(parsed.current))!,
-        solution: deserializeGrid(serializeGrid(parsed.solution))!
-      });
-    } catch (error) {
-      console.error("Failed to load saved progress", error);
+    if (payload) {
+      try {
+        const parsed = JSON.parse(payload) as SavedState;
+        if (parsed?.puzzle && parsed?.current && parsed?.solution) {
+          setSaved({
+            ...parsed,
+            size: parsed.size === 5 ? 5 : 4,
+            puzzle: deserializeGrid(serializeGrid(parsed.puzzle))!,
+            current: deserializeGrid(serializeGrid(parsed.current))!,
+            solution: deserializeGrid(serializeGrid(parsed.solution))!
+          });
+        }
+      } catch (error) {
+        console.error("Failed to load saved progress", error);
+      }
     }
+    setLoaded(true);
   }, []);
 
   const persist = (state: SavedState) => {
-    setSaved(state);
     if (typeof window !== "undefined") {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     }
@@ -49,5 +53,5 @@ export const useLocalProgress = () => {
     }
   };
 
-  return { saved, persist, clear };
+  return { saved, loaded, persist, clear };
 };

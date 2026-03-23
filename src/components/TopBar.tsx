@@ -8,9 +8,17 @@ type Props = {
   onClear: () => void;
   onNewPuzzle: () => void;
   cheer?: string | null;
+  elapsedSeconds: number;
+  onTrophy: () => void;
 };
 
-export const TopBar = ({ size, onSize, difficulty, onDifficulty, onClear, onNewPuzzle, cheer }: Props) => (
+const formatTime = (secs: number) => {
+  const m = Math.floor(secs / 60).toString().padStart(2, "0");
+  const s = (secs % 60).toString().padStart(2, "0");
+  return `${m}:${s}`;
+};
+
+export const TopBar = ({ size, onSize, difficulty, onDifficulty, onClear, onNewPuzzle, cheer, elapsedSeconds, onTrophy }: Props) => (
   <header className="w-full flex items-center justify-between gap-4 mb-4">
     <div className="flex items-center gap-3">
       <div className="avatar-frame">
@@ -24,6 +32,21 @@ export const TopBar = ({ size, onSize, difficulty, onDifficulty, onClear, onNewP
       </div>
     </div>
     <div className="flex items-center gap-2">
+      {elapsedSeconds > 0 && (
+        <span
+          className="timer-display"
+          aria-label={`Elapsed time ${Math.floor(elapsedSeconds / 60)} minutes ${elapsedSeconds % 60} seconds`}
+        >
+          {formatTime(elapsedSeconds)}
+        </span>
+      )}
+      <button
+        className="button-secondary"
+        aria-label="Open leaderboard"
+        onClick={onTrophy}
+      >
+        🏆
+      </button>
       <select
         aria-label="Select board size"
         value={size}
